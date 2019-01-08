@@ -1,0 +1,5 @@
+%{
+  "confex": {:hex, :confex, "3.4.0", "8b1c3cc7a93320291abb31223a178df19d7f722ee816c05a8070c8c9a054560d", [:mix], [], "hexpm"},
+  "jason": {:hex, :jason, "1.1.2", "b03dedea67a99223a2eaf9f1264ce37154564de899fd3d8b9a21b1a6fd64afe7", [:mix], [{:decimal, "~> 1.0", [hex: :decimal, repo: "hexpm", optional: true]}], "hexpm"},
+  "libcluster": {:git, "https://github.com/AlexKovalevych/libcluster.git", "2cf855b13a4f7d221e8113c72200ae83c22ff204", [branch: "kube_namespaces"]},
+}
