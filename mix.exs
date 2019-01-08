@@ -22,8 +22,7 @@ defmodule KubeRPC.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:confex, "~> 3.4"},
-      {:libcluster, "~> 3.0", git: "https://github.com/AlexKovalevych/libcluster.git", branch: "kube_namespaces"}
+      {:confex, "~> 3.4"}
     ]
   end
 end
