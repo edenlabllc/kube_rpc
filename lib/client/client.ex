@@ -42,7 +42,7 @@ defmodule KubeRPC.Client do
 
               pid ->
                 try do
-                  GenServer.call(server, {module, function, args}, timeout)
+                  GenServer.call(pid, {module, function, args}, timeout)
                 catch
                   :exit, error ->
                     Logger.error(inspect(error))
