@@ -35,7 +35,7 @@ defmodule KubeRPC.Client do
             Logger.info("RPC request to: #{server}, #{module}.#{function}: #{inspect(args)}")
             timeout = config()[:timeout] || 5_000
 
-            case :global.whereis_name(String.to_atom(server)) do
+            case :global.whereis_name(server) do
               # try a different server
               :undefined ->
                 run(basename, module, function, args, attempt + 1, [server | skip_servers])
