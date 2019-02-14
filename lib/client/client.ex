@@ -47,6 +47,7 @@ defmodule KubeRPC.Client do
                     try do
                       pid = GenServer.call({ergonode_config["process"], server}, ergonode_config["pid_message"])
                       :global.register_name(server, pid)
+                      gen_call(pid, {module, function, args}, timeout)
                     catch
                       :exit, error ->
                         Logger.error(inspect(error))
@@ -55,19 +56,23 @@ defmodule KubeRPC.Client do
                 end
 
               pid ->
-                try do
-                  GenServer.call(pid, {module, function, args}, timeout)
-                catch
-                  :exit, error ->
-                    Logger.error(inspect(error))
-                    {:error, :badrpc}
-                end
+                gen_call(pid, {module, function, args}, timeout)
             end
         end
       end
 
       defp get_ergonode(basename) do
         Enum.find(config()[:ergonodes] || [], &(Map.get(&1, "basename") == basename))
+      end
+
+      def gen_call(pid, {module, function, args}, timeout) do
+        try do
+          GenServer.call(pid, {module, function, args}, timeout)
+        catch
+          :exit, error ->
+            Logger.error(inspect(error))
+            {:error, :badrpc}
+        end
       end
     end
   end
