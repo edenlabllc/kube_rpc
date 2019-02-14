@@ -38,7 +38,21 @@ defmodule KubeRPC.Client do
             case :global.whereis_name(server) do
               # try a different server
               :undefined ->
-                run(basename, module, function, args, attempt + 1, [server | skip_servers])
+                # attempt to connect to ergonode
+                case get_ergonode(basename) do
+                  nil ->
+                    run(basename, module, function, args, attempt + 1, [server | skip_servers])
+
+                  ergonode_config ->
+                    try do
+                      pid = GenServer.call({ergonode_config["process"], server}, ergonode_config["pid_message"])
+                      :global.register_name(server, pid)
+                    catch
+                      :exit, error ->
+                        Logger.error(inspect(error))
+                        run(basename, module, function, args, attempt + 1, [server | skip_servers])
+                    end
+                end
 
               pid ->
                 try do
@@ -50,6 +64,10 @@ defmodule KubeRPC.Client do
                 end
             end
         end
+      end
+
+      defp get_ergonode(basename) do
+        Enum.find(config()[:ergonodes] || [], &(Map.get(&1, "basename") == basename))
       end
     end
   end
