@@ -24,6 +24,17 @@ defmodule KubeRPC.Server do
   end
 
   @impl true
+  def handle_call({module, function, args, request_id}, from, state) when is_list(args) do
+    Task.start(fn ->
+      Logger.metadata(request_id: request_id)
+      Logger.info("Calling #{module}.#{function} with args: #{inspect(args)}")
+      GenServer.reply(from, apply(module, function, args))
+    end)
+
+    {:noreply, state}
+  end
+
+  @impl true
   def handle_call(_, _, state) do
     {:reply, {:error, :badrpc}, state}
   end
