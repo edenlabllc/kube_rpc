@@ -16,7 +16,7 @@ defmodule KubeRPC.Server do
   @impl true
   def handle_call({module, function, args}, from, state) when is_list(args) do
     Task.start(fn ->
-      Logger.info("Calling #{module}.#{function} with args: #{inspect(args)}")
+      Logger.info("Calling #{module}.#{function}")
       GenServer.reply(from, apply(module, function, args))
     end)
 
@@ -27,7 +27,7 @@ defmodule KubeRPC.Server do
   def handle_call({module, function, args, request_id}, from, state) when is_list(args) do
     Task.start(fn ->
       Logger.metadata(request_id: request_id)
-      Logger.info("Calling #{module}.#{function} with args: #{inspect(args)}")
+      Logger.info("Calling #{module}.#{function}")
       GenServer.reply(from, apply(module, function, args))
     end)
 

@@ -32,7 +32,7 @@ defmodule KubeRPC.Client do
 
           _ ->
             server = Enum.random(servers)
-            Logger.info("RPC request to: #{server}, #{module}.#{function}: #{inspect(args)}")
+            Logger.info("RPC request to: #{server}, #{module}.#{function}")
             timeout = config()[:timeout] || 5_000
 
             case :global.whereis_name(server) do
