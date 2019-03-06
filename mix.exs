@@ -6,8 +6,12 @@ defmodule KubeRPC.MixProject do
       app: :kube_rpc,
       version: "0.1.0",
       elixir: "~> 1.7",
+      build_embedded: Mix.env() == :prod,
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      package: package(),
+      name: "kube_rpc",
+      source_url: "https://github.com/edenlabllc/kube_rpc"
     ]
   end
 
@@ -16,6 +20,15 @@ defmodule KubeRPC.MixProject do
     [
       extra_applications: [:logger],
       mod: {KubeRPC.Application, []}
+    ]
+  end
+
+  defp package() do
+    [
+      maintainers: ["Alex Kovalevych"],
+      files: ~w(lib mix.exs README.md),
+      licenses: ["Apache 2.0"],
+      links: %{"GitHub" => "https://github.com/edenlabllc/kube_rpc"}
     ]
   end
 
