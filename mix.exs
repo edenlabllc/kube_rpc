@@ -10,6 +10,7 @@ defmodule KubeRPC.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       package: package(),
+      description: description(),
       name: "kube_rpc",
       source_url: "https://github.com/edenlabllc/kube_rpc"
     ]
@@ -21,6 +22,12 @@ defmodule KubeRPC.MixProject do
       extra_applications: [:logger],
       mod: {KubeRPC.Application, []}
     ]
+  end
+
+  defp description() do
+    """
+    Library to create named process in a cluster node and send messages to them.
+    """
   end
 
   defp package() do
