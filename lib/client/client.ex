@@ -21,7 +21,12 @@ defmodule KubeRPC.Client do
       defp do_run(basename, module, function, args, attempt, skip_servers) do
         servers =
           Node.list()
-          |> Enum.filter(fn node -> to_string(node) == basename end)
+          |> Enum.filter(fn node ->
+            case String.split(to_string(node), "@") do
+              [^basename | _] -> true
+              _ -> false
+            end
+          end)
           |> Enum.filter(fn server -> server not in skip_servers end)
 
         case servers do
