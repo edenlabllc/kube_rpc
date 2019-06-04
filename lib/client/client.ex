@@ -61,7 +61,10 @@ defmodule KubeRPC.Client do
                 end
 
               pid ->
-                gen_call(pid, {module, function, args}, timeout)
+                case gen_call(pid, {module, function, args}, timeout) do
+                  {:error, :badrpc} -> run(basename, module, function, args, attempt + 1, [server | skip_servers])
+                  response -> response
+                end
             end
         end
       end
