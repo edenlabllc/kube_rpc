@@ -42,7 +42,6 @@ defmodule KubeRPC.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:confex, "~> 3.4"},
       {:ex_doc, ">= 0.0.0", only: :dev}
     ]
   end

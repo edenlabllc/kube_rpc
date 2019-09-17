@@ -3,7 +3,6 @@ defmodule KubeRPC.Client do
 
   defmacro __using__(app) do
     quote do
-      use Confex, otp_app: unquote(app)
       require Logger
 
       @behaviour KubeRPC.Client.Behaviour
@@ -81,6 +80,10 @@ defmodule KubeRPC.Client do
             Logger.error(inspect(error))
             {:error, :badrpc}
         end
+      end
+
+      defp config do
+        Application.get_all_env(unquote(app))
       end
     end
   end
