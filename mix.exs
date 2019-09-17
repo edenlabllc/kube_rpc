@@ -4,8 +4,8 @@ defmodule KubeRPC.MixProject do
   def project do
     [
       app: :kube_rpc,
-      version: "0.3.0",
-      elixir: "~> 1.7",
+      version: "0.4.0",
+      elixir: "~> 1.9",
       build_embedded: Mix.env() == :prod,
       start_permanent: Mix.env() == :prod,
       deps: deps(),
