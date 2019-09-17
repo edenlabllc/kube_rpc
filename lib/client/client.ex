@@ -83,7 +83,7 @@ defmodule KubeRPC.Client do
       end
 
       defp config do
-        Application.get_all_env(unquote(app))
+        Application.fetch_env!(unquote(app), __MODULE__)
       end
     end
   end
