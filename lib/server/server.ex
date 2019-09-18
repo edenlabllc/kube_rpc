@@ -35,6 +35,11 @@ defmodule KubeRPC.Server do
   end
 
   @impl true
+  def handle_call(:ping, _, state) do
+    {:reply, "pong", state}
+  end
+
+  @impl true
   def handle_call(_, _, state) do
     {:reply, {:error, :badrpc}, state}
   end
