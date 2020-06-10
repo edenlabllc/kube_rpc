@@ -3,7 +3,7 @@
 Client-server library for erlang/elixir RPC microservices interactions.
 Can be used for avoid code duplication between microservices.
 
-Features:
+## Features:
 
 - erlang native RPC usage
 - GenServer/call function for sending messages to remote processes
