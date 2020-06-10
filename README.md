@@ -1,7 +1,16 @@
 # KubeRpc
 
 Client-server library for erlang/elixir RPC microservices interactions.
-It uses GenServer call function for sending messages to remote processes.
+Can be used for avoid code duplication between microservices.
+
+Features:
+
+- erlang native RPC usage
+- GenServer/call function for sending messages to remote processes
+- non blocking server queue
+- RPC retry calls in case of fail
+- health check support
+- k8s scaling support allowing to send messages to equal microservices from the same namespace
 
 ## Server
 
