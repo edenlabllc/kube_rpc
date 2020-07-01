@@ -54,7 +54,7 @@ defmodule KubeRPC.Client do
                       gen_call(pid, {module, function, args}, timeout)
                     catch
                       :exit, error ->
-                        Logger.error(inspect(error))
+                        error |> get_error() |> inspect() |> Logger.error()
                         run(basename, module, function, args, attempt + 1, [server | skip_servers])
                     end
                 end
@@ -77,10 +77,17 @@ defmodule KubeRPC.Client do
           GenServer.call(pid, {module, function, args, Logger.metadata()[:request_id]}, timeout)
         catch
           :exit, error ->
-            Logger.error(inspect(error))
+            error |> get_error() |> inspect() |> Logger.error()
             {:error, :badrpc}
         end
       end
+
+      def get_error({state, {GenServer, :call, [pid, {module, func, args, request_id}, timeout]}} = error)
+          when length(args) > 0 do
+        {state, {GenServer, :call, [pid, {module, func, [], request_id}, timeout]}}
+      end
+
+      def get_error(error), do: error
 
       defp config do
         Application.fetch_env!(unquote(app), __MODULE__)
