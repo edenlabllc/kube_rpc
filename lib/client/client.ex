@@ -94,7 +94,7 @@ defmodule KubeRPC.Client do
         inspect({state, {GenServer, :call, [pid, {module, func, [], request_id}, timeout]}})
       end
 
-      def sanitize(args) when length(args) > 0, do: []
+      def sanitize([_ | _]), do: []
       def sanitize(message), do: inspect(message)
 
       defp config do
