@@ -9,7 +9,7 @@ defmodule KubeRPC.Client do
 
       def run(basename, module, function, args, attempt \\ 0, skip_servers \\ []) do
         if attempt >= config()[:max_attempts] do
-          Logger.warn("Failed RPC request to: #{basename}. #{module}.#{function}: #{inspect(args)}")
+          Logger.warn("Failed RPC request to: #{basename}. #{module}.#{function}: #{sanitized_inspect(args)}")
 
           {:error, :badrpc}
         else
@@ -54,7 +54,7 @@ defmodule KubeRPC.Client do
                       gen_call(pid, {module, function, args}, timeout)
                     catch
                       :exit, error ->
-                        Logger.error(inspect(error))
+                        error |> sanitized_inspect() |> Logger.error()
                         run(basename, module, function, args, attempt + 1, [server | skip_servers])
                     end
                 end
@@ -77,10 +77,25 @@ defmodule KubeRPC.Client do
           GenServer.call(pid, {module, function, args, Logger.metadata()[:request_id]}, timeout)
         catch
           :exit, error ->
-            Logger.error(inspect(error))
+            error |> sanitized_inspect() |> Logger.error()
             {:error, :badrpc}
         end
       end
+
+      def sanitized_inspect(value) do
+        case Logger.level() do
+          :debug -> inspect(value)
+          _ -> sanitize(value)
+        end
+      end
+
+      def sanitize({state, {GenServer, :call, [pid, {module, func, args, request_id}, timeout]}})
+          when length(args) > 0 do
+        inspect({state, {GenServer, :call, [pid, {module, func, [], request_id}, timeout]}})
+      end
+
+      def sanitize([_ | _]), do: []
+      def sanitize(message), do: inspect(message)
 
       defp config do
         Application.fetch_env!(unquote(app), __MODULE__)
