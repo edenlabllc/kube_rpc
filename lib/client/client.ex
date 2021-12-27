@@ -34,9 +34,6 @@ defmodule KubeRPC.Client do
           {:error, :no_servers_available} ->
             Logger.warn("No RPC servers available for basename: #{basename}")
             {:error, :badrpc}
-
-          error ->
-            error
         end
       end
 
@@ -83,13 +80,7 @@ defmodule KubeRPC.Client do
         Logger.info("RPC request to: #{server}, #{module}.#{function}")
 
         try do
-          case GenServer.call(pid, {module, function, args, Logger.metadata()[:request_id]}, timeout) do
-            {:error, _} = error ->
-              error
-
-            response ->
-              {:ok, response}
-          end
+          {:ok, GenServer.call(pid, {module, function, args, Logger.metadata()[:request_id]}, timeout)}
         catch
           :exit, error ->
             error |> sanitized_inspect() |> Logger.error()
