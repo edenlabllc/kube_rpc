@@ -7,99 +7,139 @@ defmodule KubeRPC.Client do
 
       @behaviour KubeRPC.Client.Behaviour
 
-      def run(basename, module, function, args, attempt \\ 0, skip_servers \\ []) do
-        if attempt >= config()[:max_attempts] do
-          Logger.warn("Failed RPC request to: #{basename}. #{module}.#{function}: #{sanitized_inspect(args)}")
+      def run(basename, module, function, args, timeout \\ nil),
+        do: do_run(basename, module, function, args, get_timeout(timeout), 0, [])
 
-          {:error, :badrpc}
+      defp get_timeout(timeout) when is_integer(timeout) and timeout > 0,
+        do: timeout
+
+      defp get_timeout(_),
+        do: config()[:timeout] || 5_000
+
+      defp do_run(basename, module, function, args, timeout, attempts, skip_servers) do
+        with :ok <- check_attempts(attempts),
+             servers <- filter_servers(basename, skip_servers),
+             {:ok, server} <- get_random_rpc_server(servers),
+             {:ok, pid} <- get_rpc_server_process_pid(basename, server),
+             {:ok, response} <- call_rpc(pid, server, module, function, args, timeout) do
+          response
         else
-          do_run(basename, module, function, args, attempt, skip_servers)
-        end
-      end
+          {:error, {:bad_server, server}} ->
+            do_run(basename, module, function, args, timeout, attempts + 1, [server | skip_servers])
 
-      defp do_run(basename, module, function, args, attempt, skip_servers) do
-        servers =
-          Node.list()
-          |> Enum.filter(fn node ->
-            case String.split(to_string(node), "@") do
-              [^basename | _] -> true
-              _ -> false
-            end
-          end)
-          |> Enum.filter(fn server -> server not in skip_servers end)
+          {:error, :too_many_attempts} ->
+            Logger.warn("Failed RPC request to: #{basename}. #{module}.#{function}: #{sanitized_inspect(args)}")
+            {:error, :badrpc}
 
-        case servers do
-          # Invalid basename or all servers are down
-          [] ->
+          {:error, :no_servers_available} ->
             Logger.warn("No RPC servers available for basename: #{basename}")
             {:error, :badrpc}
 
-          _ ->
-            server = Enum.random(servers)
-            Logger.info("RPC request to: #{server}, #{module}.#{function}")
-            timeout = config()[:timeout] || 5_000
+          error ->
+            error
+        end
+      end
 
-            case :global.whereis_name(server) do
-              # try a different server
-              :undefined ->
-                # attempt to connect to ergonode
-                case get_ergonode(basename) do
-                  nil ->
-                    run(basename, module, function, args, attempt + 1, [server | skip_servers])
+      defp check_attempts(attempts) do
+        cond do
+          attempts >= config()[:max_attempts] ->
+            {:error, :too_many_attempts}
 
-                  ergonode_config ->
-                    try do
-                      pid = GenServer.call({ergonode_config["process"], server}, ergonode_config["pid_message"])
-                      :global.register_name(server, pid)
-                      gen_call(pid, {module, function, args}, timeout)
-                    catch
-                      :exit, error ->
-                        error |> sanitized_inspect() |> Logger.error()
-                        run(basename, module, function, args, attempt + 1, [server | skip_servers])
-                    end
-                end
+          true ->
+            :ok
+        end
+      end
 
-              pid ->
-                case gen_call(pid, {module, function, args}, timeout) do
-                  {:error, :badrpc} -> run(basename, module, function, args, attempt + 1, [server | skip_servers])
-                  response -> response
-                end
+      defp filter_servers(basename, skip_servers) do
+        Node.list()
+        |> Enum.filter(fn node ->
+          case String.split(to_string(node), "@") do
+            [^basename | _] -> true
+            _ -> false
+          end
+        end)
+        |> Enum.filter(fn server -> server not in skip_servers end)
+      end
+
+      # Invalid basename or all servers are down
+      defp get_random_rpc_server([]),
+        do: {:error, :no_servers_available}
+
+      defp get_random_rpc_server(servers),
+        do: {:ok, Enum.random(servers)}
+
+      defp get_rpc_server_process_pid(basename, server) do
+        case :global.whereis_name(server) do
+          # try to find a process
+          :undefined ->
+            find_and_set_rpc_server_process_pid(basename, server)
+
+          pid ->
+            {:ok, pid}
+        end
+      end
+
+      defp call_rpc(pid, server, module, function, args, timeout) do
+        Logger.info("RPC request to: #{server}, #{module}.#{function}")
+
+        try do
+          case GenServer.call(pid, {module, function, args, Logger.metadata()[:request_id]}, timeout) do
+            {:error, _} = error ->
+              error
+
+            response ->
+              {:ok, response}
+          end
+        catch
+          :exit, error ->
+            error |> sanitized_inspect() |> Logger.error()
+            {:error, {:bad_server, server}}
+        end
+      end
+
+      defp find_and_set_rpc_server_process_pid(basename, server) do
+        # attempt to connect to ergonode
+        case get_ergonode(basename) do
+          # try a different server
+          nil ->
+            {:error, {:bad_server, server}}
+
+          ergonode_config ->
+            try do
+              pid = GenServer.call({ergonode_config["process"], server}, ergonode_config["pid_message"])
+              :global.register_name(server, pid)
+
+              {:ok, pid}
+            catch
+              :exit, error ->
+                error |> sanitized_inspect() |> Logger.error()
+                {:error, {:bad_server, server}}
             end
         end
       end
 
-      defp get_ergonode(basename) do
-        Enum.find(config()[:ergonodes] || [], &(Map.get(&1, "basename") == basename))
-      end
+      defp get_ergonode(basename), do: Enum.find(config()[:ergonodes] || [], &(Map.get(&1, "basename") == basename))
 
-      def gen_call(pid, {module, function, args}, timeout) do
-        try do
-          GenServer.call(pid, {module, function, args, Logger.metadata()[:request_id]}, timeout)
-        catch
-          :exit, error ->
-            error |> sanitized_inspect() |> Logger.error()
-            {:error, :badrpc}
-        end
-      end
-
-      def sanitized_inspect(value) do
+      defp sanitized_inspect(value) do
         case Logger.level() do
           :debug -> inspect(value)
           _ -> sanitize(value)
         end
       end
 
-      def sanitize({state, {GenServer, :call, [pid, {module, func, args, request_id}, timeout]}})
-          when length(args) > 0 do
+      defp sanitize({state, {GenServer, :call, [pid, {module, func, args, request_id}, timeout]}})
+           when length(args) > 0 do
         inspect({state, {GenServer, :call, [pid, {module, func, [], request_id}, timeout]}})
       end
 
-      def sanitize([_ | _]), do: []
-      def sanitize(message), do: inspect(message)
+      defp sanitize([_ | _]),
+        do: []
 
-      defp config do
-        Application.fetch_env!(unquote(app), __MODULE__)
-      end
+      defp sanitize(message),
+        do: inspect(message)
+
+      defp config,
+        do: Application.fetch_env!(unquote(app), __MODULE__)
     end
   end
 end
