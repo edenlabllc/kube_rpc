@@ -1,4 +1,4 @@
-use Mix.Config
+import Config
 
 config :testing_app, KubeRPC.TestClient,
   timeout: 5_000,
