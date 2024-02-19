@@ -77,10 +77,12 @@ defmodule KubeRPC.Client do
       end
 
       defp call_rpc(pid, server, module, function, args, timeout) do
-        Logger.info("RPC request to: #{server}, #{module}.#{function}")
+        Logger.info("RPC request to: #{server}, #{module}.#{function} started")
 
         try do
-          {:ok, GenServer.call(pid, {module, function, args, Logger.metadata()[:request_id]}, timeout)}
+          result = GenServer.call(pid, {module, function, args, Logger.metadata()[:request_id]}, timeout)
+          Logger.info("RPC request to: #{server}, #{module}.#{function} finished")
+          {:ok, result}
         catch
           :exit, error ->
             error |> sanitized_inspect() |> Logger.error()
