@@ -11,7 +11,7 @@ defmodule KubeRPC.ClientTest do
 
   alias KubeRPC.TestClient
 
-  test "returns :ok from remote server handler" do
+  test "returns :ok from remote server handler when selector is basename" do
     [node] = LocalCluster.start_nodes("testing_server", 1)
 
     log =
@@ -25,10 +25,33 @@ defmodule KubeRPC.ClientTest do
     assert Enum.any?(logs, &(&1 =~ "RPC request to: testing_server1@127.0.0.1, Elixir.TestHandler.respond finished"))
   end
 
-  test "returns {:error, :badrpc} when no servers available" do
+  test "returns :ok from remote server handler when selector is basename and regex" do
+    [node] = LocalCluster.start_nodes("testing_server", 1)
+
+    log =
+      capture_log(fn ->
+        assert :ok == TestClient.run({get_node_basename(node), ~r/127/}, TestHandler, :respond, [:ok])
+      end)
+
+    logs = String.split(log, "\n")
+
+    assert Enum.any?(logs, &(&1 =~ "RPC request to: testing_server1@127.0.0.1, Elixir.TestHandler.respond started"))
+    assert Enum.any?(logs, &(&1 =~ "RPC request to: testing_server1@127.0.0.1, Elixir.TestHandler.respond finished"))
+  end
+
+  test "returns {:error, :badrpc} when no servers available with simple selector" do
     assert capture_log(fn ->
              assert {:error, :badrpc} == TestClient.run("wrong_basename", TestHandler, :respond, [:ok])
            end) =~ "No RPC servers available for basename: wrong_basename"
+  end
+
+  test "returns {:error, :badrpc} when no servers available with complex selector" do
+    [node] = LocalCluster.start_nodes("testing_server", 1)
+
+    assert capture_log(fn ->
+             assert {:error, :badrpc} ==
+                      TestClient.run({get_node_basename(node), ~r/128/}, TestHandler, :respond, [:ok])
+           end) =~ "No RPC servers available for basename: testing_server"
   end
 
   test "returns {:error, :badrpc} when all attempts are exhausted" do

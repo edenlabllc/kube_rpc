@@ -16,16 +16,18 @@ defmodule KubeRPC.Client do
       defp get_timeout(_),
         do: config()[:timeout] || 5_000
 
-      defp do_run(basename, module, function, args, timeout, attempts, skip_servers) do
+      defp do_run(selector, module, function, args, timeout, attempts, skip_servers) do
+        basename = get_basename(selector)
+
         with :ok <- check_attempts(attempts),
-             servers <- filter_servers(basename, skip_servers),
+             servers <- filter_servers(selector, skip_servers),
              {:ok, server} <- get_random_rpc_server(servers),
-             {:ok, pid} <- get_rpc_server_process_pid(basename, server),
+             {:ok, pid} <- get_rpc_server_process_pid(selector, server),
              {:ok, response} <- call_rpc(pid, server, module, function, args, timeout) do
           response
         else
           {:error, {:bad_server, server}} ->
-            do_run(basename, module, function, args, timeout, attempts + 1, [server | skip_servers])
+            do_run(selector, module, function, args, timeout, attempts + 1, [server | skip_servers])
 
           {:error, :too_many_attempts} ->
             Logger.warn("Failed RPC request to: #{basename}. #{module}.#{function}: #{sanitized_inspect(args)}")
@@ -37,6 +39,12 @@ defmodule KubeRPC.Client do
         end
       end
 
+      defp get_basename({basename, _regex}),
+        do: basename
+
+      defp get_basename(basename),
+        do: basename
+
       defp check_attempts(attempts) do
         cond do
           attempts >= config()[:max_attempts] ->
@@ -47,15 +55,25 @@ defmodule KubeRPC.Client do
         end
       end
 
-      defp filter_servers(basename, skip_servers) do
+      defp filter_servers(selector, skip_servers) do
         Node.list()
-        |> Enum.filter(fn node ->
-          case String.split(to_string(node), "@") do
+        |> filter_servers_by_selector(selector)
+        |> Enum.filter(fn server -> server not in skip_servers end)
+      end
+
+      defp filter_servers_by_selector(servers, {basename, regex}) do
+        servers
+        |> filter_servers_by_selector(basename)
+        |> Enum.filter(&(&1 |> to_string() |> String.match?(regex)))
+      end
+
+      defp filter_servers_by_selector(servers, basename) do
+        Enum.filter(servers, fn server ->
+          case String.split(to_string(server), "@") do
             [^basename | _] -> true
             _ -> false
           end
         end)
-        |> Enum.filter(fn server -> server not in skip_servers end)
       end
 
       # Invalid basename or all servers are down
