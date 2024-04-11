@@ -30,11 +30,11 @@ defmodule KubeRPC.Client do
             do_run(selector, module, function, args, timeout, attempts + 1, [server | skip_servers])
 
           {:error, :too_many_attempts} ->
-            Logger.warn("Failed RPC request to: #{basename}. #{module}.#{function}: #{sanitized_inspect(args)}")
+            Logger.warning("Failed RPC request to: #{basename}. #{module}.#{function}: #{sanitized_inspect(args)}")
             {:error, :badrpc}
 
           {:error, :no_servers_available} ->
-            Logger.warn("No RPC servers available for basename: #{basename}")
+            Logger.warning("No RPC servers available for basename: #{basename}")
             {:error, :badrpc}
         end
       end
