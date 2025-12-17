@@ -22,7 +22,7 @@ defmodule KubeRPC.Client do
         with :ok <- check_attempts(attempts),
              servers <- filter_servers(selector, skip_servers),
              {:ok, server} <- get_random_rpc_server(servers),
-             {:ok, pid} <- get_rpc_server_process_pid(selector, server),
+             pid <- get_rpc_server_process_pid(server),
              {:ok, response} <- call_rpc(pid, server, module, function, args, timeout) do
           response
         else
@@ -83,14 +83,14 @@ defmodule KubeRPC.Client do
       defp get_random_rpc_server(servers),
         do: {:ok, Enum.random(servers)}
 
-      defp get_rpc_server_process_pid(basename, server) do
+      defp get_rpc_server_process_pid(server) do
         case :global.whereis_name(server) do
           # try to find a process
           :undefined ->
-            find_and_set_rpc_server_process_pid(basename, server)
+            :rpc.call(server, :global, :whereis_name, [server], 500)
 
           pid ->
-            {:ok, pid}
+            pid
         end
       end
 
@@ -107,29 +107,6 @@ defmodule KubeRPC.Client do
             {:error, {:bad_server, server}}
         end
       end
-
-      defp find_and_set_rpc_server_process_pid(basename, server) do
-        # attempt to connect to ergonode
-        case get_ergonode(basename) do
-          # try a different server
-          nil ->
-            {:error, {:bad_server, server}}
-
-          ergonode_config ->
-            try do
-              pid = GenServer.call({ergonode_config["process"], server}, ergonode_config["pid_message"])
-              :global.register_name(server, pid)
-
-              {:ok, pid}
-            catch
-              :exit, error ->
-                error |> sanitized_inspect() |> Logger.error()
-                {:error, {:bad_server, server}}
-            end
-        end
-      end
-
-      defp get_ergonode(basename), do: Enum.find(config()[:ergonodes] || [], &(Map.get(&1, "basename") == basename))
 
       defp sanitized_inspect(value) do
         case Logger.level() do
