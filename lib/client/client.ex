@@ -22,8 +22,7 @@ defmodule KubeRPC.Client do
         with :ok <- check_attempts(attempts),
              servers <- filter_servers(selector, skip_servers),
              {:ok, server} <- get_random_rpc_server(servers),
-             pid <- get_rpc_server_process_pid(server),
-             {:ok, response} <- call_rpc(pid, server, module, function, args, timeout) do
+             {:ok, response} <- call_rpc(server, module, function, args, timeout) do
           response
         else
           {:error, {:bad_server, server}} ->
@@ -94,12 +93,34 @@ defmodule KubeRPC.Client do
         end
       end
 
-      defp call_rpc(pid, server, module, function, args, timeout) do
+      defp call_rpc(server, module, function, args, timeout) do
         Logger.info("RPC request to: #{server}, #{module}.#{function} started")
+
+        case :rpc.call(
+               server,
+               KubeRPC.Handler,
+               :handle,
+               [module, function, args, Logger.metadata()[:request_id]],
+               timeout
+             ) do
+          {:badrpc, _} = error ->
+            error |> sanitized_inspect() |> Logger.error()
+            legacy_call(server, module, function, args, timeout)
+
+          result ->
+            Logger.info("RPC request to: #{server}, #{module}.#{function} finished")
+            {:ok, result}
+        end
+      end
+
+      defp legacy_call(server, module, function, args, timeout) do
+        Logger.info("Legacy RPC request to: #{server}, #{module}.#{function} started")
+
+        pid = get_rpc_server_process_pid(server)
 
         try do
           result = GenServer.call(pid, {module, function, args, Logger.metadata()[:request_id]}, timeout)
-          Logger.info("RPC request to: #{server}, #{module}.#{function} finished")
+          Logger.info("Legacy RPC request to: #{server}, #{module}.#{function} finished")
           {:ok, result}
         catch
           :exit, error ->
