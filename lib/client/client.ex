@@ -86,7 +86,7 @@ defmodule KubeRPC.Client do
         case :global.whereis_name(server) do
           # try to find a process
           :undefined ->
-            :rpc.call(server, :global, :whereis_name, [server], 500)
+            :erpc.call(server, :global, :whereis_name, [server], 500)
 
           pid ->
             pid
@@ -96,20 +96,22 @@ defmodule KubeRPC.Client do
       defp call_rpc(server, module, function, args, timeout) do
         Logger.info("RPC request to: #{server}, #{module}.#{function} started")
 
-        case :rpc.call(
-               server,
-               KubeRPC.Handler,
-               :handle,
-               [module, function, args, Logger.metadata()[:request_id]],
-               timeout
-             ) do
-          {:badrpc, _} = error ->
+        try do
+          result =
+            :erpc.call(
+              server,
+              KubeRPC.Handler,
+              :handle,
+              [module, function, args, Logger.metadata()[:request_id]],
+              timeout
+            )
+
+          Logger.info("RPC request to: #{server}, #{module}.#{function} finished")
+          {:ok, result}
+        rescue
+          error ->
             error |> sanitized_inspect() |> Logger.error()
             legacy_call(server, module, function, args, timeout)
-
-          result ->
-            Logger.info("RPC request to: #{server}, #{module}.#{function} finished")
-            {:ok, result}
         end
       end
 
