@@ -17,7 +17,16 @@ defmodule KubeRPC.Server do
   def handle_call({module, function, args}, from, state) when is_list(args) do
     Task.start(fn ->
       Logger.info("Calling #{module}.#{function}")
-      GenServer.reply(from, apply(module, function, args))
+
+      result =
+        try do
+          apply(module, function, args)
+        rescue
+          error ->
+            {:error, Exception.message(error)}
+        end
+
+      GenServer.reply(from, result)
     end)
 
     {:noreply, state}
@@ -28,7 +37,16 @@ defmodule KubeRPC.Server do
     Task.start(fn ->
       Logger.metadata(request_id: request_id)
       Logger.info("Calling #{module}.#{function}")
-      GenServer.reply(from, apply(module, function, args))
+
+      result =
+        try do
+          apply(module, function, args)
+        rescue
+          error ->
+            {:error, Exception.message(error)}
+        end
+
+      GenServer.reply(from, result)
     end)
 
     {:noreply, state}
