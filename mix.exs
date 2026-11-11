@@ -36,7 +36,7 @@ defmodule KubeRPC.MixProject do
     [
       maintainers: ["Alex Kovalevych"],
       files: ~w(lib mix.exs README.md),
-      licenses: ["Apache 2.0"],
+      licenses: ["Apache-2.0"],
       links: %{"GitHub" => "https://github.com/edenlabllc/kube_rpc"}
     ]
   end
